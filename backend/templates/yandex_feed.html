@@ -1,0 +1,11 @@
+{% extends "admin/change_form.html" %}
+
+{% block content %}
+    {{ block.super }}
+    <form method="post">
+        {% csrf_token %}
+        <div class="col-12">
+            <button type="submit" name="yandex-feed" value="yandex_feed"> Обновить файл для Яндекс поиска </button>
+        </div>
+    </form>
+{% endblock %}

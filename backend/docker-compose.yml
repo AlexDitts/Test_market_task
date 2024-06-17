@@ -1,0 +1,26 @@
+version: '3.10'
+services:
+  postgres_db:
+    container_name: gk_sport_postgres
+    image: postgres:16.0-alpine
+    volumes:
+      - gk_sport_postgres_data:/var/lib/postgresql/gk_sport_postgres_data/
+    environment:
+      - POSTGRES_DB=gk-sport
+      - POSTGRES_USER=gk-sport
+      - POSTGRES_PASSWORD=gk-sport
+    ports:
+      - 5436:5432
+    expose: [5432]
+  redis:
+    container_name: gk_sport_redis
+    image: redis:alpine
+    hostname: redis
+    volumes:
+      - gk_sport_redis_data:/data
+    ports:
+      - 6379:6379
+    expose: [ 6379 ]
+volumes:
+  gk_sport_postgres_data:
+  gk_sport_redis_data:

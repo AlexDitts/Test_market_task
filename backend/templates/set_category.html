@@ -1,0 +1,10 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<form action="" method="post">{% csrf_token %}
+    <p>Новые категории:</p>
+    {{ form }}
+    <input type="hidden" name="action" value="{{ action }}"/>
+    <input type="submit" class="btn btn-xs btn-info" name="apply" value="Сохранить"/>
+</form>
+{% endblock %}

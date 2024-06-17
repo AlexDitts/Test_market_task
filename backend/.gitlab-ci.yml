@@ -1,0 +1,108 @@
+stages:
+  - build
+  - deploy
+ 
+.build:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.8.1-debug
+    entrypoint: [""]
+  before_script:
+    - |
+      echo "{\"auths\":{\"${REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${REGISTRY_USERNAME}" "${REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+  script:
+    - |
+      /kaniko/executor --context $CI_PROJECT_DIR \
+                       --build-arg UID=$PYTHON_UID \
+                       --build-arg GID=$PYTHON_GID \
+                       --dockerfile $CI_PROJECT_DIR/Dockerfile \
+                       --destination $REGISTRY/$REGISTRY_IMAGE_PATH/$CI_COMMIT_BRANCH:$CI_COMMIT_SHORT_SHA \
+                       --destination $REGISTRY/$REGISTRY_IMAGE_PATH/$CI_COMMIT_BRANCH:latest \
+                       --cache=true
+
+.build_prod:
+  stage: build
+  image: alpine:3.16.1
+  before_script:
+    - |
+      apk --update add --quiet --no-cache openssh-client bind-tools rsync
+      eval $(ssh-agent -s)
+      echo "$SSH_PRIVATE_KEY" | ssh-add -
+  script:
+    - host $HOST
+    - rsync -avE --delete --exclude '.git' --exclude '.gitlab-ci.yml' -e "ssh -o StrictHostKeyChecking=no" . $USER@$HOST:/home/$USER/$PROJECT_DIR/src/backend/
+    - ssh -o StrictHostKeyChecking=no $USER@$HOST "cd ~/$PROJECT_DIR/src/backend/ &&
+      docker build --build-arg UID=$UID --build-arg GID=$GID . -t backend:latest"
+
+build:main:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  extends:
+    - .build
+
+build:prod:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "stable"
+  extends:
+    - .build_prod
+  variables:
+    ENV: $ENV_PROD
+    USER: gksport
+    HOST: gksport.ru
+    PROJECT_DIR: new.gksport.ru
+    GID: 1000
+    UID: 1000
+
+.deploy:
+  stage: deploy
+  image: alpine:3.16.1
+  before_script:
+    - |
+      apk --update add --quiet --no-cache openssh-client bind-tools
+      eval $(ssh-agent -s)
+      echo "$SSH_PRIVATE_KEY" | ssh-add -
+    - echo "$ENV_DEV" > project.env
+  script:
+    - cat project.env
+    - scp -o StrictHostKeyChecking=no project.env gksport@gksport.vm.backservice.tech:/home/gksport/gksport.msharks.ru/docker/backend/.env
+    - ssh -o StrictHostKeyChecking=no gksport@gksport.vm.backservice.tech "export BACKEND_TAG=$CI_COMMIT_SHORT_SHA &&
+                                                                  cd ~/gksport.msharks.ru && docker-compose up -d backend celery_worker celery_beat &&
+                                                                  docker pull $REGISTRY/$REGISTRY_IMAGE_PATH/$CI_COMMIT_BRANCH:latest &&
+                                                                  docker exec backend python3.11 -m manage makemigrations &&
+                                                                  docker exec backend python3.11 -m manage migrate &&
+                                                                  docker exec backend python3.11 -m manage collectstatic --noinput"
+
+.deploy_prod:
+  stage: deploy
+  image: alpine:3.16.1
+  before_script:
+    - |
+      apk --update add --quiet --no-cache openssh-client bind-tools
+      eval $(ssh-agent -s)
+      echo "$SSH_PRIVATE_KEY" | ssh-add -
+    - echo "$ENV_PROD" > project.env
+  script:
+    - host $HOST
+    - cat project.env
+    - scp -o StrictHostKeyChecking=no project.env $USER@$HOST:/home/$USER/$PROJECT_DIR/docker/backend/.env
+    - ssh -o StrictHostKeyChecking=no $USER@$HOST "cd ~/$PROJECT_DIR && docker compose up -d backend celery_worker celery_beat &&
+                                                   docker exec backend python3.11 -m manage makemigrations &&
+                                                   docker exec backend python3.11 -m manage migrate &&
+                                                   docker exec backend python3.11 -m manage collectstatic --noinput"
+ 
+deploy:main:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  extends:
+    - .deploy
+
+deploy:prod:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "stable"
+  extends:
+    - .deploy_prod
+  variables:
+    ENV: $ENV_PROD
+    USER: gksport
+    HOST: gksport.ru
+    PROJECT_DIR: new.gksport.ru
