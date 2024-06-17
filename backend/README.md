@@ -53,8 +53,8 @@
     ```
 
 11. __ТОЛЬКО ПРИ ПЕРВОМ ДЕПЛОЕ__ Создать суперпользователя
-   login: +78888888888
-   password: 88888888888
+   login: +70000000000
+   password: 1231231231
     ```bash
     python manage.py createsuperuser
     ```
