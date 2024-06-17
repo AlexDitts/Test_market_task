@@ -63,7 +63,7 @@ class Base(Configuration):
             # Наименование контейнера для базы данных в Docker Compose
             "HOST": Value(environ_name="DEFAULT_DATABASE_HOST", default="localhost"),
             # Порт базы данных
-            "PORT": Value(environ_name="DEFAULT_DATABASE_PORT", default="5436"),
+            "PORT": Value(environ_name="DEFAULT_DATABASE_PORT", default="5432"),
         }
     }
     CELERY_BROKER_URL = Value("redis://localhost:6379")

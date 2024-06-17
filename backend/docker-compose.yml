@@ -6,11 +6,11 @@ services:
     volumes:
       - gk_sport_postgres_data:/var/lib/postgresql/gk_sport_postgres_data/
     environment:
-      - POSTGRES_DB=gk-sport
-      - POSTGRES_USER=gk-sport
-      - POSTGRES_PASSWORD=gk-sport
+      - POSTGRES_DB=test_task
+      - POSTGRES_USER=test_task
+      - POSTGRES_PASSWORD=some_pass
     ports:
-      - 5436:5432
+      - 5432:5432
     expose: [5432]
   redis:
     container_name: gk_sport_redis
